@@ -5,44 +5,57 @@ const node_1 = require("vscode-languageserver/node");
 class FourGLCompletionProvider {
     constructor(symbolProvider) {
         this.symbolProvider = symbolProvider;
+        // Sage X3 specific keywords with proper case
         this.keywords = [
-            'FUNCTION', 'PROCEDURE', 'FORM', 'REPORT', 'DATABASE', 'TABLE',
-            'SELECT', 'INSERT', 'UPDATE', 'DELETE', 'WHERE', 'FROM', 'INTO', 'VALUES',
-            'IF', 'THEN', 'ELSE', 'ENDIF', 'WHILE', 'ENDWHILE', 'FOR', 'ENDFOR',
-            'RETURN', 'CALL', 'DEFINE', 'LET', 'AND', 'OR', 'NOT',
-            'INTEGER', 'DECIMAL', 'CHAR', 'VARCHAR', 'DATE', 'DATETIME',
-            // Sage X3 specific keywords
-            'Subprog', 'Variable', 'Local', 'Global', 'Const', 'End', 'Endif', 'Endcase',
-            'Case', 'When', 'Default', 'Trbegin', 'Trcommit', 'Trrollback', 'Read', 'Write',
-            'Rewrite', 'For', 'Next', 'fstat', 'mess', 'GESTCRE', 'GESADD', 'Close',
-            'string$', 'val', 'date$', 'time$', 'datetime$', 'format$', 'find'
+            // Data declaration keywords
+            'Subprog', 'Function', 'Funprog', 'Variable', 'Local', 'Global', 'Const', 'Value',
+            // Control flow keywords
+            'If', 'Then', 'Else', 'Elsif', 'Endif', 'While', 'For', 'Next', 'Case', 'When', 'Default', 'Endcase',
+            'Break', 'Continue', 'Repeat', 'Until', 'End', 'Return', 'Gosub',
+            // Database keywords
+            'Read', 'Write', 'Rewrite', 'Delete', 'First', 'Next', 'Prev', 'Last', 'Close', 'Open',
+            'Trbegin', 'Trcommit', 'Trrollback', 'Commit', 'Rollback',
+            // Sage X3 function calls
+            'Call', 'From', 'With', 'Using', 'Affzo', 'Affiche', 'Erreur', 'Infbox', 'Onerrgo',
+            // Data types
+            'Char', 'Integer', 'Decimal', 'Date', 'Datetime', 'Longchar', 'Clbfile', 'Uuident',
+            'Tinyint', 'Shortint', 'Float', 'Double', 'Binary',
+            // Operators and logical
+            'And', 'Or', 'Not', 'Mod', 'Like', 'Matches',
+            // Constants
+            'True', 'False', 'Null', 'Empty'
         ];
         this.builtInFunctions = [
-            { name: 'TODAY', returnType: 'DATE', description: 'Returns the current date' },
-            { name: 'NOW', returnType: 'DATETIME', description: 'Returns the current date and time' },
-            { name: 'LENGTH', returnType: 'INTEGER', description: 'Returns the length of a string' },
-            { name: 'SUBSTR', returnType: 'VARCHAR', description: 'Returns a substring' },
-            { name: 'UPPER', returnType: 'VARCHAR', description: 'Converts string to uppercase' },
-            { name: 'LOWER', returnType: 'VARCHAR', description: 'Converts string to lowercase' },
-            { name: 'TRIM', returnType: 'VARCHAR', description: 'Removes leading and trailing spaces' },
-            { name: 'ABS', returnType: 'DECIMAL', description: 'Returns absolute value' },
-            { name: 'ROUND', returnType: 'DECIMAL', description: 'Rounds a number' },
-            { name: 'FLOOR', returnType: 'INTEGER', description: 'Returns the floor of a number' },
-            { name: 'CEIL', returnType: 'INTEGER', description: 'Returns the ceiling of a number' },
-            { name: 'ISNULL', returnType: 'INTEGER', description: 'Checks if value is null' },
-            { name: 'NVL', returnType: 'VARCHAR', description: 'Returns alternative value if null' },
-            // Sage X3 specific functions
-            { name: 'string$', returnType: 'CHAR', description: 'Converts number to string' },
-            { name: 'val', returnType: 'DECIMAL', description: 'Converts string to number' },
+            // Sage X3 System Functions
+            { name: 'GESTCRE', returnType: 'VOID', description: 'Creates system messages and logs' },
+            { name: 'GESADD', returnType: 'VOID', description: 'System error handling module' },
+            { name: 'AFFZO', returnType: 'VOID', description: 'Display object/field management' },
+            { name: 'AFFICHE', returnType: 'VOID', description: 'Display data on screen' },
+            { name: 'ERREUR', returnType: 'VOID', description: 'Display error messages' },
+            { name: 'INFBOX', returnType: 'VOID', description: 'Display information box' },
+            { name: 'MKSTAT', returnType: 'INTEGER', description: 'Make status code' },
+            // Date and Time Functions
+            { name: 'GDAT', returnType: 'DATE', description: 'Get current date' },
             { name: 'date$', returnType: 'DATE', description: 'Returns current system date' },
             { name: 'time$', returnType: 'CHAR', description: 'Returns current system time' },
             { name: 'datetime$', returnType: 'DATETIME', description: 'Returns current date and time' },
-            { name: 'format$', returnType: 'CHAR', description: 'Formats a value according to pattern' },
-            { name: 'find', returnType: 'INTEGER', description: 'Finds position of substring' },
-            { name: 'mess', returnType: 'CHAR', description: 'Returns system message text' },
-            { name: 'fstat', returnType: 'INTEGER', description: 'File operation status code' }
+            // String Functions
+            { name: 'NUM', returnType: 'DECIMAL', description: 'Convert string to number' },
+            { name: 'VAL', returnType: 'DECIMAL', description: 'Convert string to numeric value' },
+            { name: 'STR', returnType: 'CHAR', description: 'Convert number to string' },
+            { name: 'LEFT', returnType: 'CHAR', description: 'Returns leftmost characters' },
+            { name: 'RIGHT', returnType: 'CHAR', description: 'Returns rightmost characters' },
+            { name: 'MID', returnType: 'CHAR', description: 'Returns middle characters' },
+            { name: 'LEN', returnType: 'INTEGER', description: 'Returns length of string' },
+            { name: 'UPPER', returnType: 'CHAR', description: 'Converts string to uppercase' },
+            { name: 'LOWER', returnType: 'CHAR', description: 'Converts string to lowercase' },
+            { name: 'TRIM', returnType: 'CHAR', description: 'Removes leading and trailing spaces' },
+            { name: 'REPLACE', returnType: 'CHAR', description: 'Replace text in string' },
+            // File Status
+            { name: 'fstat', returnType: 'INTEGER', description: 'File operation status code' },
+            { name: 'mess', returnType: 'CHAR', description: 'Returns system message text' }
         ];
-        // Code snippets for common 4GL patterns
+        // Code snippets for common Sage X3 patterns
         this.codeSnippets = [
             {
                 label: 'subprog',

@@ -1,10 +1,10 @@
-# Sage X3 4GL Developer Tools
+# Sage X3 Developer Tools
 
-[![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/SageX3helper.fourgl-language-support)](https://marketplace.visualstudio.com/items?itemName=SageX3helper.fourgl-language-support)
-[![Downloads](https://img.shields.io/visual-studio-marketplace/d/SageX3helper.fourgl-language-support)](https://marketplace.visualstudio.com/items?itemName=SageX3helper.fourgl-language-support)
-[![Rating](https://img.shields.io/visual-studio-marketplace/r/SageX3helper.fourgl-language-support)](https://marketplace.visualstudio.com/items?itemName=SageX3helper.fourgl-language-support)
+[![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/SageX3helper.sage-x3-language-support)](https://marketplace.visualstudio.com/items?itemName=SageX3helper.sage-x3-language-support)
+[![Downloads](https://img.shields.io/visual-studio-marketplace/d/SageX3helper.sage-x3-language-support)](https://marketplace.visualstudio.com/items?itemName=SageX3helper.sage-x3-language-support)
+[![Rating](https://img.shields.io/visual-studio-marketplace/r/SageX3helper.sage-x3-language-support)](https://marketplace.visualstudio.com/items?itemName=SageX3helper.sage-x3-language-support)
 
-A comprehensive **Language Server Protocol (LSP)** extension for **4GL** and **Sage X3** development in Visual Studio Code.
+A comprehensive **Language Server Protocol (LSP)** extension for **Sage X3 .src files** development in Visual Studio Code.
 
 ## ✨ Features
 

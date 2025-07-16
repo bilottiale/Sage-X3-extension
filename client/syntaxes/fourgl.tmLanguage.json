@@ -1,15 +1,24 @@
 {
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-  "name": "4GL",
+  "name": "Sage X3",
   "patterns": [
+    {
+      "include": "#comments"
+    },
     {
       "include": "#keywords"
     },
     {
-      "include": "#strings"
+      "include": "#sage-x3-keywords"
     },
     {
-      "include": "#comments"
+      "include": "#data-types"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#strings"
     },
     {
       "include": "#numbers"
@@ -18,81 +27,134 @@
       "include": "#operators"
     },
     {
-      "include": "#sql-keywords"
-    },
-    {
-      "include": "#form-keywords"
+      "include": "#functions"
     }
   ],
   "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.hash.sage-x3",
+          "match": "#.*$"
+        },
+        {
+          "name": "comment.block.sage-x3",
+          "begin": "#\\*\\*",
+          "end": "#\\*!",
+          "patterns": [
+            {
+              "match": ".*"
+            }
+          ]
+        }
+      ]
+    },
     "keywords": {
       "patterns": [
         {
-          "name": "keyword.control.fourgl",
-          "match": "\\b(if|then|else|endif|while|for|foreach|end|function|return|main|define|declare|let|case|when|otherwise|endcase|try|catch|finally|throw)\\b"
+          "name": "keyword.control.sage-x3",
+          "match": "\\b(?i)(If|Then|Else|Elsif|Endif|While|For|Next|Case|When|Default|Endcase|Break|Continue|Repeat|Until|End)\\b"
         },
         {
-          "name": "keyword.other.fourgl",
-          "match": "\\b(database|table|column|record|array|cursor|report|form|menu|window|dialog|input|display|print|call|exit|continue|break)\\b"
+          "name": "keyword.declaration.sage-x3", 
+          "match": "\\b(?i)(Subprog|Function|Funprog|Variable|Local|Global|Const|Value)\\b"
         }
       ]
     },
-    "sql-keywords": {
+    "sage-x3-keywords": {
       "patterns": [
         {
-          "name": "keyword.other.sql.fourgl",
-          "match": "\\b(select|from|where|insert|update|delete|create|drop|alter|grant|revoke|commit|rollback|begin|work|prepare|execute|open|close|fetch|order|by|group|having|union|join|inner|left|right|outer|on|as|distinct|all|and|or|not|null|is|like|between|in|exists|count|sum|avg|min|max)\\b"
+          "name": "keyword.other.sage-x3",
+          "match": "\\b(?i)(Call|From|With|Using|Gosub|Return|Affzo|Affiche|Erreur|Infbox|Onerrgo|Trbegin|Commit|Rollback|Read|Write|Rewrite|Delete|First|Next|Prev|Last|Close|Open)\\b"
+        },
+        {
+          "name": "keyword.operator.sage-x3",
+          "match": "\\b(?i)(And|Or|Not|Mod|Like|Matches)\\b"
         }
       ]
     },
-    "form-keywords": {
+    "data-types": {
       "patterns": [
         {
-          "name": "keyword.other.form.fourgl",
-          "match": "\\b(form|screen|field|page|before|after|on|key|accept|reject|validate|cancel|help|message|error|prompt|options|attributes|color|reverse|blink|underline|normal|bold)\\b"
+          "name": "storage.type.sage-x3",
+          "match": "\\b(?i)(Char|Integer|Decimal|Date|Datetime|Longchar|Clbfile|Uuident|Tinyint|Shortint|Float|Double|Binary)\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.sage-x3",
+          "match": "\\b(?i)(True|False|Null|Empty)\\b"
         }
       ]
     },
     "strings": {
-      "name": "string.quoted.double.fourgl",
-      "begin": "\"",
-      "end": "\"",
       "patterns": [
         {
-          "name": "constant.character.escape.fourgl",
-          "match": "\\\\."
-        }
-      ]
-    },
-    "comments": {
-      "patterns": [
-        {
-          "name": "comment.line.double-slash.fourgl",
-          "match": "//.*$"
+          "name": "string.quoted.double.sage-x3",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.sage-x3",
+              "match": "\\\\."
+            }
+          ]
         },
         {
-          "name": "comment.block.fourgl",
-          "begin": "/\\*",
-          "end": "\\*/"
+          "name": "string.quoted.single.sage-x3",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.sage-x3",
+              "match": "\\\\."
+            }
+          ]
         }
       ]
     },
     "numbers": {
       "patterns": [
         {
-          "name": "constant.numeric.fourgl",
-          "match": "\\b\\d+(\\.\\d+)?\\b"
+          "name": "constant.numeric.decimal.sage-x3",
+          "match": "\\b\\d+\\.\\d+\\b"
+        },
+        {
+          "name": "constant.numeric.integer.sage-x3",
+          "match": "\\b\\d+\\b"
         }
       ]
     },
     "operators": {
       "patterns": [
         {
-          "name": "keyword.operator.fourgl",
-          "match": "(\\+|\\-|\\*|\\/|%|=|<>|!=|<|>|<=|>=|\\|\\||&&)"
+          "name": "keyword.operator.assignment.sage-x3",
+          "match": "="
+        },
+        {
+          "name": "keyword.operator.comparison.sage-x3",
+          "match": "(=|<>|!=|<|>|<=|>=)"
+        },
+        {
+          "name": "keyword.operator.arithmetic.sage-x3",
+          "match": "(\\+|\\-|\\*|\\/|\\%)"
+        },
+        {
+          "name": "keyword.operator.logical.sage-x3",
+          "match": "(&|\\|)"
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "name": "entity.name.function.sage-x3",
+          "match": "\\b(?i)(GESTCRE|GESADD|AFFZO|AFFICHE|ERREUR|INFBOX|MKSTAT|GDAT|NUM|VAL|STR|LEFT|RIGHT|MID|LEN|UPPER|LOWER|TRIM|REPLACE)\\b"
         }
       ]
     }
   },
-  "scopeName": "source.fourgl"
+  "scopeName": "source.sage-x3"
 }

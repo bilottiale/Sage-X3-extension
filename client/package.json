@@ -1,8 +1,8 @@
 {
-  "name": "fourgl-language-support",
-  "displayName": "Sage X3 4GL Developer Tools",
-  "description": "Advanced Language Server Protocol (LSP) for 4GL and Sage X3 development with intelligent code completion, snippets, syntax highlighting, and diagnostics",
-  "version": "1.0.0",
+  "name": "sage-x3-language-support",
+  "displayName": "Sage X3 Developer Tools",
+  "description": "Advanced Language Server Protocol (LSP) for Sage X3 development with intelligent code completion, snippets, syntax highlighting, and diagnostics for .src files",
+  "version": "1.1.0",
   "publisher": "SageX3helper",
   "author": {
     "name": "4GL Tools Team"
@@ -17,14 +17,16 @@
     "url": "https://github.com/SageX3helper/fourgl-language-support/issues"
   },
   "keywords": [
-    "4gl",
-    "fourgl",
     "sage x3",
+    "sage",
+    "x3",
+    "src",
     "language server",
     "lsp",
     "code completion",
     "syntax highlighting",
-    "programming language"
+    "programming language",
+    "erp"
   ],
   "galleryBanner": {
     "color": "#1e415e",
@@ -40,19 +42,18 @@
   ],
   "main": "./out/extension.js",
   "activationEvents": [
-    "onLanguage:fourgl"
+    "onLanguage:sage-x3"
   ],
   "contributes": {
     "languages": [
       {
-        "id": "fourgl",
+        "id": "sage-x3",
         "aliases": [
-          "4GL",
-          "fourgl",
-          "Sage X3"
+          "Sage X3",
+          "SageX3",
+          "X3"
         ],
         "extensions": [
-          ".4gl",
           ".src"
         ],
         "configuration": "./language-configuration.json"
@@ -60,22 +61,22 @@
     ],
     "grammars": [
       {
-        "language": "fourgl",
-        "scopeName": "source.fourgl",
+        "language": "sage-x3",
+        "scopeName": "source.sage-x3",
         "path": "./syntaxes/fourgl.tmLanguage.json"
       }
     ],
     "configuration": {
       "type": "object",
-      "title": "4GL Language Configuration",
+      "title": "Sage X3 Language Configuration",
       "properties": {
-        "fourgl.maxNumberOfProblems": {
+        "sage-x3.maxNumberOfProblems": {
           "scope": "resource",
           "type": "number",
           "default": 100,
           "description": "Maximum number of problems reported for each file"
         },
-        "fourgl.trace.server": {
+        "sage-x3.trace.server": {
           "scope": "window",
           "type": "string",
           "enum": [
@@ -84,7 +85,7 @@
             "verbose"
           ],
           "default": "off",
-          "description": "Traces the communication between VSCode and the 4GL language server"
+          "description": "Traces the communication between VSCode and the Sage X3 language server"
         }
       }
     }

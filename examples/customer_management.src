@@ -1,0 +1,175 @@
+# Sample Sage X3 Program - Customer Management
+# Demonstrates proper Sage X3 .src syntax and patterns
+
+##############################################################################
+# GLOBAL VARIABLES AND CONSTANTS
+##############################################################################
+Global Char GUSER(20)               # Current user
+Global Integer GERROR               # Global error flag
+Global Date GCURRENTDATE            # Current business date
+
+# Customer type constants
+Const Char CUST_PREMIUM(1) = "P"    # Premium customer
+Const Char CUST_STANDARD(1) = "S"   # Standard customer
+Const Char CUST_VIP(1) = "V"        # VIP customer
+
+##############################################################################
+# CUSTOMER DISCOUNT CALCULATION
+##############################################################################
+Function CALCULATE_DISCOUNT(AMOUNT, CUSTOMER_TYPE) Returning Decimal
+Variable Decimal AMOUNT
+Variable Char CUSTOMER_TYPE(1)
+Local Decimal DISCOUNT
+Local Decimal DISCOUNT_RATE
+
+    DISCOUNT = 0
+    DISCOUNT_RATE = 0
+    
+    Case CUSTOMER_TYPE
+        When CUST_VIP
+            If AMOUNT > 10000
+                DISCOUNT_RATE = 0.20
+            Else
+                DISCOUNT_RATE = 0.15
+            Endif
+        When CUST_PREMIUM
+            If AMOUNT > 5000
+                DISCOUNT_RATE = 0.15
+            Else
+                DISCOUNT_RATE = 0.10
+            Endif
+        When CUST_STANDARD
+            If AMOUNT > 1000
+                DISCOUNT_RATE = 0.05
+            Else
+                DISCOUNT_RATE = 0
+            Endif
+        Default
+            DISCOUNT_RATE = 0
+    Endcase
+    
+    DISCOUNT = AMOUNT * DISCOUNT_RATE
+    Return DISCOUNT
+End
+
+##############################################################################
+# CUSTOMER ORDER PROCESSING
+##############################################################################
+Subprog PROCESS_CUSTOMER_ORDER(CUSTOMER_ID, ORDER_AMOUNT)
+Variable Char CUSTOMER_ID(20)
+Variable Decimal ORDER_AMOUNT
+Local Char CUSTOMER_NAME(100)
+Local Char CUSTOMER_TYPE(1)
+Local Decimal FINAL_AMOUNT
+Local Decimal DISCOUNT_AMOUNT
+Local Date ORDER_DATE
+Local Integer RESULT_CODE
+
+    # Initialize
+    GERROR = 0
+    ORDER_DATE = GDAT
+    
+    # Read customer information
+    Read [BPCUSTOMER]BPCNUM = CUSTOMER_ID
+    If fstat <> 0
+        GERROR = 1
+        Call GESTCRE From GESADD With "CUSTMGMT", "Customer not found: " + CUSTOMER_ID, 1
+        Return
+    Endif
+    
+    CUSTOMER_NAME = BPCUSTOMER.BPCNAM
+    CUSTOMER_TYPE = BPCUSTOMER.BPCTYP
+    
+    # Calculate discount
+    Call CALCULATE_DISCOUNT(ORDER_AMOUNT, CUSTOMER_TYPE) Returning DISCOUNT_AMOUNT
+    FINAL_AMOUNT = ORDER_AMOUNT - DISCOUNT_AMOUNT
+    
+    # Create sales order header
+    Trbegin SORDER
+    
+    SORDER.SOHNUM = CUSTOMER_ID + "-" + STR(ORDER_DATE)
+    SORDER.BPCORD = CUSTOMER_ID
+    SORDER.ORDDAT = ORDER_DATE
+    SORDER.GROAMT = ORDER_AMOUNT
+    SORDER.DISAMT = DISCOUNT_AMOUNT
+    SORDER.NETAMT = FINAL_AMOUNT
+    SORDER.CREUSER = GUSER
+    SORDER.CREDAT = ORDER_DATE
+    
+    Write [SORDER]
+    If fstat <> 0
+        Trrollback
+        GERROR = 1
+        Call GESTCRE From GESADD With "CUSTMGMT", "Error creating order: " + mess(255, fstat, 1), 1
+        Return
+    Endif
+    
+    Trcommit
+    
+    # Display confirmation
+    Call AFFICHE("Order processed for " + CUSTOMER_NAME)
+    Call AFFICHE("Original amount: " + STR(ORDER_AMOUNT))
+    Call AFFICHE("Discount: " + STR(DISCOUNT_AMOUNT))
+    Call AFFICHE("Final amount: " + STR(FINAL_AMOUNT))
+    
+End
+
+##############################################################################
+# GET CUSTOMER ORDER COUNT
+##############################################################################
+Function GET_CUSTOMER_ORDERS(CUSTOMER_ID) Returning Integer
+Variable Char CUSTOMER_ID(20)
+Local Integer ORDER_COUNT
+Local Char FILTER(200)
+
+    ORDER_COUNT = 0
+    FILTER = "[SORDER]BPCORD=""" + CUSTOMER_ID + """"
+    
+    # Count orders for customer
+    First [SORDER] Where FILTER
+    While fstat = 0
+        ORDER_COUNT = ORDER_COUNT + 1
+        Next [SORDER] Where FILTER
+    Wend
+    
+    Return ORDER_COUNT
+End
+
+##############################################################################
+# CUSTOMER REPORT GENERATION
+##############################################################################
+Subprog GENERATE_CUSTOMER_REPORT()
+Local Char CUSTOMER_ID(20)
+Local Char CUSTOMER_NAME(100)
+Local Integer ORDER_COUNT
+Local Decimal TOTAL_SPENT
+Local Char REPORT_LINE(200)
+
+    Call AFFICHE("=== CUSTOMER REPORT ===")
+    
+    # Process all customers
+    First [BPCUSTOMER]
+    While fstat = 0
+        CUSTOMER_ID = BPCUSTOMER.BPCNUM
+        CUSTOMER_NAME = BPCUSTOMER.BPCNAM
+        
+        # Get order count
+        Call GET_CUSTOMER_ORDERS(CUSTOMER_ID) Returning ORDER_COUNT
+        
+        # Calculate total spent
+        TOTAL_SPENT = 0
+        First [SORDER] Where "[SORDER]BPCORD=""" + CUSTOMER_ID + """"
+        While fstat = 0
+            TOTAL_SPENT = TOTAL_SPENT + SORDER.NETAMT
+            Next [SORDER] Where "[SORDER]BPCORD=""" + CUSTOMER_ID + """"
+        Wend
+        
+        # Generate report line
+        REPORT_LINE = CUSTOMER_NAME + " - Orders: " + STR(ORDER_COUNT) + " - Total: " + STR(TOTAL_SPENT)
+        Call AFFICHE(REPORT_LINE)
+        
+        Next [BPCUSTOMER]
+    Wend
+    
+    Call AFFICHE("=== END OF REPORT ===")
+End

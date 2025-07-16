@@ -1,0 +1,7 @@
+# Test file for Sage X3 LSP completion
+# Type "Subprog" or "Variable" or "Call" to test code snippets
+# This file uses proper Sage X3 .src syntax
+
+##############################################################################
+# Test Sage X3 Code Completion 
+##############################################################################

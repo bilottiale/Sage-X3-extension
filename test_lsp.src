@@ -1,0 +1,53 @@
+# Test your Sage X3 Language Server
+# This file demonstrates proper Sage X3 .src syntax
+
+##############################################################################
+# GLOBAL VARIABLES
+##############################################################################
+Global Char GUSER(20)               # Current user
+Global Integer GERROR               # Global error flag
+Global Date GCURRENTDATE            # Current business date
+
+##############################################################################
+# CONSTANTS
+##############################################################################
+Const Char STAT_ACTIVE(1) = "A"     # Active status
+Const Char STAT_INACTIVE(1) = "I"   # Inactive status
+
+##############################################################################
+# MAIN SUBPROGRAM
+##############################################################################
+Subprog TEST_COMPLETION()
+Variable Char CUSTOMER_NAME(50)      # Customer name variable
+Variable Integer CUSTOMER_AGE        # Customer age variable
+Variable Decimal AMOUNT              # Amount variable
+
+    # Try typing these and see the completion:
+    # Type "Variable" and press Ctrl+Space
+    # Type "Call" and see function completion  
+    # Type "Subprog" for subprogram completion
+    
+    CUSTOMER_NAME = "John Doe"
+    CUSTOMER_AGE = 25
+    AMOUNT = 1500.50
+    
+    # Type "CUSTOMER_" and see variable completion
+    If CUSTOMER_AGE > 18
+        GERROR = 0
+        Call GESTCRE From GESADD With "TEST", "Customer is adult", 0
+    Else
+        GERROR = 1
+        Call GESTCRE From GESADD With "TEST", "Customer is minor", 1  
+    Endif
+    
+End
+
+MAIN
+    DEFINE result INTEGER
+    
+    # Call the function - you should see completion for "test_completion"
+    CALL test_completion() RETURNING result
+    
+    # Try typing built-in functions like:
+    # TODAY(), LENGTH(), UPPER()
+END MAIN
