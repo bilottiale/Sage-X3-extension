@@ -1,0 +1,1 @@
+{"root":["./src/server.ts","./src/language/completion-provider.ts","./src/language/diagnostics-provider.ts","./src/language/hover-provider.ts","./src/language/symbol-provider.ts","./src/parser/fourgl-parser.ts","./src/parser/lexer.ts"],"version":"5.8.3"}

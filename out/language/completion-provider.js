@@ -1,0 +1,387 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.FourGLCompletionProvider = void 0;
+const node_1 = require("vscode-languageserver/node");
+class FourGLCompletionProvider {
+    constructor(symbolProvider) {
+        this.symbolProvider = symbolProvider;
+        this.keywords = [
+            'FUNCTION', 'PROCEDURE', 'FORM', 'REPORT', 'DATABASE', 'TABLE',
+            'SELECT', 'INSERT', 'UPDATE', 'DELETE', 'WHERE', 'FROM', 'INTO', 'VALUES',
+            'IF', 'THEN', 'ELSE', 'ENDIF', 'WHILE', 'ENDWHILE', 'FOR', 'ENDFOR',
+            'RETURN', 'CALL', 'DEFINE', 'LET', 'AND', 'OR', 'NOT',
+            'INTEGER', 'DECIMAL', 'CHAR', 'VARCHAR', 'DATE', 'DATETIME',
+            // Sage X3 specific keywords
+            'Subprog', 'Variable', 'Local', 'Global', 'Const', 'End', 'Endif', 'Endcase',
+            'Case', 'When', 'Default', 'Trbegin', 'Trcommit', 'Trrollback', 'Read', 'Write',
+            'Rewrite', 'For', 'Next', 'fstat', 'mess', 'GESTCRE', 'GESADD', 'Close',
+            'string$', 'val', 'date$', 'time$', 'datetime$', 'format$', 'find'
+        ];
+        this.builtInFunctions = [
+            { name: 'TODAY', returnType: 'DATE', description: 'Returns the current date' },
+            { name: 'NOW', returnType: 'DATETIME', description: 'Returns the current date and time' },
+            { name: 'LENGTH', returnType: 'INTEGER', description: 'Returns the length of a string' },
+            { name: 'SUBSTR', returnType: 'VARCHAR', description: 'Returns a substring' },
+            { name: 'UPPER', returnType: 'VARCHAR', description: 'Converts string to uppercase' },
+            { name: 'LOWER', returnType: 'VARCHAR', description: 'Converts string to lowercase' },
+            { name: 'TRIM', returnType: 'VARCHAR', description: 'Removes leading and trailing spaces' },
+            { name: 'ABS', returnType: 'DECIMAL', description: 'Returns absolute value' },
+            { name: 'ROUND', returnType: 'DECIMAL', description: 'Rounds a number' },
+            { name: 'FLOOR', returnType: 'INTEGER', description: 'Returns the floor of a number' },
+            { name: 'CEIL', returnType: 'INTEGER', description: 'Returns the ceiling of a number' },
+            { name: 'ISNULL', returnType: 'INTEGER', description: 'Checks if value is null' },
+            { name: 'NVL', returnType: 'VARCHAR', description: 'Returns alternative value if null' },
+            // Sage X3 specific functions
+            { name: 'string$', returnType: 'CHAR', description: 'Converts number to string' },
+            { name: 'val', returnType: 'DECIMAL', description: 'Converts string to number' },
+            { name: 'date$', returnType: 'DATE', description: 'Returns current system date' },
+            { name: 'time$', returnType: 'CHAR', description: 'Returns current system time' },
+            { name: 'datetime$', returnType: 'DATETIME', description: 'Returns current date and time' },
+            { name: 'format$', returnType: 'CHAR', description: 'Formats a value according to pattern' },
+            { name: 'find', returnType: 'INTEGER', description: 'Finds position of substring' },
+            { name: 'mess', returnType: 'CHAR', description: 'Returns system message text' },
+            { name: 'fstat', returnType: 'INTEGER', description: 'File operation status code' }
+        ];
+        // Code snippets for common 4GL patterns
+        this.codeSnippets = [
+            {
+                label: 'subprog',
+                kind: 'Snippet',
+                detail: 'Sage X3 Subprogram Template',
+                documentation: 'Creates a complete subprogram with parameter and local variable declarations',
+                insertText: `Subprog \${1:FUNCTION_NAME}(\${2:PARAMETER1}, \${3:PARAMETER2})
+Variable \${4:Char} \${2:PARAMETER1}(\${5:50})
+Variable \${6:Decimal} \${3:PARAMETER2}
+  Local \${7:Char} \${8:LOCAL_VAR}(\${9:100})
+  Local \${10:Integer} \${11:RESULT_CODE}
+  
+  # Initialize
+  \${11:RESULT_CODE} = 0
+  \${8:LOCAL_VAR} = ""
+  
+  # Main logic here
+  \${0}
+  
+End`
+            },
+            {
+                label: 'function',
+                kind: 'Snippet',
+                detail: 'Sage X3 Function Template',
+                documentation: 'Creates a function with return value',
+                insertText: `Function \${1:FUNCTION_NAME}(\${2:PARAMETER1}, \${3:PARAMETER2}) Returning \${4:Decimal}
+Variable \${5:Char} \${2:PARAMETER1}(\${6:50})
+Variable \${7:Decimal} \${3:PARAMETER2}
+  Local \${8:Decimal} \${9:RESULT}
+  
+  # Function logic
+  \${9:RESULT} = 0
+  \${0}
+  
+  Return \${9:RESULT}
+End`
+            },
+            {
+                label: 'read-record',
+                kind: 'Snippet',
+                detail: 'Database Read with Error Handling',
+                documentation: 'Read a database record with proper error checking',
+                insertText: `Read [\${1:TABLE_NAME}]\${2:KEY_FIELD} = \${3:KEY_VALUE}
+If fstat <> 0
+  GERROR = 1
+  Call GESTCRE From GESADD With "\${4:MODULE_NAME}", "\${1:TABLE_NAME} not found: " + \${3:KEY_VALUE}, 1
+  Return
+Endif
+
+# Process the record
+\${0}`
+            },
+            {
+                label: 'write-record',
+                kind: 'Snippet',
+                detail: 'Database Write with Transaction',
+                documentation: 'Write a new database record with transaction management',
+                insertText: `Trbegin \${1:TABLE_NAME}
+
+\${1:TABLE_NAME}.\${2:FIELD1} = \${3:VALUE1}
+\${1:TABLE_NAME}.\${4:FIELD2} = \${5:VALUE2}
+\${1:TABLE_NAME}.\${6:CREUSER} = GUSER
+\${1:TABLE_NAME}.\${7:CREDAT} = date$
+
+Write [\${1:TABLE_NAME}]
+If fstat <> 0
+  Trrollback
+  GERROR = 1
+  Call GESTCRE From GESADD With "\${8:MODULE_NAME}", "Error creating \${1:TABLE_NAME}: " + mess(255, fstat, 1), 1
+  Return
+Endif
+
+Trcommit
+\${0}`
+            },
+            {
+                label: 'update-record',
+                kind: 'Snippet',
+                detail: 'Database Update with Transaction',
+                documentation: 'Update an existing database record safely',
+                insertText: `Trbegin \${1:TABLE_NAME}
+
+Read [\${1:TABLE_NAME}]\${2:KEY_FIELD} = \${3:KEY_VALUE}
+If fstat <> 0
+  Trrollback
+  GERROR = 1
+  Call GESTCRE From GESADD With "\${4:MODULE_NAME}", "\${1:TABLE_NAME} not found: " + \${3:KEY_VALUE}, 1
+  Return
+Endif
+
+\${1:TABLE_NAME}.\${5:FIELD_TO_UPDATE} = \${6:NEW_VALUE}
+\${1:TABLE_NAME}.\${7:UPDUSER} = GUSER
+\${1:TABLE_NAME}.\${8:UPDDAT} = date$
+
+Rewrite [\${1:TABLE_NAME}]
+If fstat <> 0
+  Trrollback
+  GERROR = 1
+  Call GESTCRE From GESADD With "\${4:MODULE_NAME}", "Error updating \${1:TABLE_NAME}: " + mess(255, fstat, 1), 1
+  Return
+Endif
+
+Trcommit
+\${0}`
+            },
+            {
+                label: 'for-loop-table',
+                kind: 'Snippet',
+                detail: 'For Loop Through Database Table',
+                documentation: 'Loop through all records in a database table',
+                insertText: `For [\${1:TABLE_NAME}] Where \${2:CONDITION}
+  # Process each record
+  \${0}
+Next`
+            },
+            {
+                label: 'if-error-check',
+                kind: 'Snippet',
+                detail: 'Error Check Pattern',
+                documentation: 'Standard error checking pattern for Sage X3',
+                insertText: `If GERROR <> 0
+  Call GESTCRE From GESADD With "\${1:MODULE_NAME}", "\${2:ERROR_MESSAGE}", 1
+  Return
+Endif
+\${0}`
+            },
+            {
+                label: 'case-statement',
+                kind: 'Snippet',
+                detail: 'Case Statement Template',
+                documentation: 'Multi-way branch case statement',
+                insertText: `Case \${1:VARIABLE}
+  When "\${2:VALUE1}"
+    \${3:# Action for value 1}
+  When "\${4:VALUE2}"
+    \${5:# Action for value 2}
+  When "\${6:VALUE3}"
+    \${7:# Action for value 3}
+  Default
+    \${8:# Default action}
+Endcase
+\${0}`
+            },
+            {
+                label: 'validate-customer',
+                kind: 'Snippet',
+                detail: 'Customer Validation Template',
+                documentation: 'Standard customer validation pattern',
+                insertText: `# Validate customer exists and is active
+Read [CUSTOMER]CUSTCODE = \${1:CUSTOMER_CODE}
+If fstat <> 0
+  GERROR = 1
+  Call GESTCRE From GESADD With "\${2:MODULE_NAME}", "Customer not found: " + \${1:CUSTOMER_CODE}, 1
+  Return
+Endif
+
+If CUSTOMER.STATUS <> "A"
+  GERROR = 1
+  Call GESTCRE From GESADD With "\${2:MODULE_NAME}", "Customer not active: " + \${1:CUSTOMER_CODE}, 1
+  Return
+Endif
+
+\${0}`
+            },
+            {
+                label: 'calculate-totals',
+                kind: 'Snippet',
+                detail: 'Calculate Order Totals Template',
+                documentation: 'Standard pattern for calculating order totals',
+                insertText: `# Calculate order totals
+Local Decimal LLINETOTAL, LTAX, LDISCOUNT, LGRANDTOTAL
+
+LLINETOTAL = 0
+For [\${1:ORDERLINES}] Where \${2:ORDNUM} = \${3:ORDER_NUMBER}
+  LLINETOTAL += \${1:ORDERLINES}.\${4:QUANTITY} * \${1:ORDERLINES}.\${5:UNITPRICE}
+Next
+
+LTAX = LLINETOTAL * \${6:TAX_RATE}
+LDISCOUNT = \${7:DISCOUNT_AMOUNT}
+LGRANDTOTAL = LLINETOTAL + LTAX - LDISCOUNT
+
+\${0}`
+            }
+        ];
+    }
+    getCompletionItems(document, position) {
+        const completions = [];
+        const text = document.getText();
+        const lines = text.split('\n');
+        const currentLine = lines[position.line] || '';
+        const currentWord = this.getCurrentWord(currentLine, position.character);
+        // Add keywords
+        for (const keyword of this.keywords) {
+            if (this.shouldIncludeCompletion(keyword, currentWord)) {
+                completions.push({
+                    label: keyword,
+                    kind: node_1.CompletionItemKind.Keyword,
+                    detail: '4GL Keyword',
+                    insertText: keyword
+                });
+            }
+        }
+        // Add built-in functions
+        for (const func of this.builtInFunctions) {
+            if (this.shouldIncludeCompletion(func.name, currentWord)) {
+                completions.push({
+                    label: func.name,
+                    kind: node_1.CompletionItemKind.Function,
+                    detail: `Built-in function: ${func.returnType}`,
+                    documentation: func.description,
+                    insertText: `${func.name}($1)`,
+                    insertTextFormat: 2 // Snippet format
+                });
+            }
+        }
+        // Add user-defined functions
+        const functions = this.symbolProvider.getFunctions();
+        for (const func of functions) {
+            if (this.shouldIncludeCompletion(func.name, currentWord)) {
+                completions.push({
+                    label: func.name,
+                    kind: node_1.CompletionItemKind.Function,
+                    detail: func.detail || `Function: ${func.dataType || 'void'}`,
+                    insertText: `${func.name}($1)`,
+                    insertTextFormat: 2 // Snippet format
+                });
+            }
+        }
+        // Add procedures
+        const procedures = this.symbolProvider.getProcedures();
+        for (const proc of procedures) {
+            if (this.shouldIncludeCompletion(proc.name, currentWord)) {
+                completions.push({
+                    label: proc.name,
+                    kind: node_1.CompletionItemKind.Method,
+                    detail: proc.detail || 'Procedure',
+                    insertText: `${proc.name}($1)`,
+                    insertTextFormat: 2 // Snippet format
+                });
+            }
+        }
+        // Add variables in scope
+        const variables = this.symbolProvider.getVariablesInScope(document, position);
+        for (const variable of variables) {
+            if (this.shouldIncludeCompletion(variable.name, currentWord)) {
+                completions.push({
+                    label: variable.name,
+                    kind: variable.type === 'parameter' ? node_1.CompletionItemKind.Variable : node_1.CompletionItemKind.Variable,
+                    detail: variable.detail || `${variable.type}: ${variable.dataType || 'unknown'}`,
+                    insertText: variable.name
+                });
+            }
+        }
+        // Add SQL-specific completions if in SQL context
+        if (this.isInSqlContext(currentLine)) {
+            const sqlKeywords = ['SELECT', 'FROM', 'WHERE', 'INSERT', 'UPDATE', 'DELETE', 'JOIN', 'INNER', 'LEFT', 'RIGHT', 'OUTER'];
+            for (const keyword of sqlKeywords) {
+                if (this.shouldIncludeCompletion(keyword, currentWord)) {
+                    completions.push({
+                        label: keyword,
+                        kind: node_1.CompletionItemKind.Keyword,
+                        detail: 'SQL Keyword',
+                        insertText: keyword
+                    });
+                }
+            }
+        }
+        // Add form-specific completions if in form context
+        if (this.isInFormContext(currentLine)) {
+            const formKeywords = ['INPUT', 'DISPLAY', 'CONSTRUCT', 'MENU', 'PROMPT', 'MESSAGE'];
+            for (const keyword of formKeywords) {
+                if (this.shouldIncludeCompletion(keyword, currentWord)) {
+                    completions.push({
+                        label: keyword,
+                        kind: node_1.CompletionItemKind.Keyword,
+                        detail: 'Form Keyword',
+                        insertText: keyword
+                    });
+                }
+            }
+        }
+        // Add code snippets
+        for (const snippet of this.codeSnippets) {
+            if (this.shouldIncludeCompletion(snippet.label, currentWord)) {
+                completions.push({
+                    label: snippet.label,
+                    kind: node_1.CompletionItemKind.Snippet,
+                    detail: snippet.detail,
+                    documentation: snippet.documentation,
+                    insertText: snippet.insertText,
+                    insertTextFormat: 2 // Snippet format with placeholders
+                });
+            }
+        }
+        return completions;
+    }
+    resolveCompletionItem(item) {
+        // Add additional documentation or details
+        if (item.kind === node_1.CompletionItemKind.Function) {
+            const builtIn = this.builtInFunctions.find(f => f.name === item.label);
+            if (builtIn) {
+                item.documentation = {
+                    kind: 'markdown',
+                    value: `**${builtIn.name}**\n\nReturns: ${builtIn.returnType}\n\n${builtIn.description}`
+                };
+            }
+        }
+        return item;
+    }
+    getCurrentWord(line, character) {
+        let start = character;
+        let end = character;
+        // Find start of word
+        while (start > 0 && /\w/.test(line[start - 1])) {
+            start--;
+        }
+        // Find end of word
+        while (end < line.length && /\w/.test(line[end])) {
+            end++;
+        }
+        return line.substring(start, end);
+    }
+    shouldIncludeCompletion(candidate, currentWord) {
+        if (!currentWord) {
+            return true;
+        }
+        return candidate.toLowerCase().startsWith(currentWord.toLowerCase());
+    }
+    isInSqlContext(line) {
+        const sqlContextKeywords = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'FROM', 'WHERE'];
+        const upperLine = line.toUpperCase();
+        return sqlContextKeywords.some(keyword => upperLine.includes(keyword));
+    }
+    isInFormContext(line) {
+        const formContextKeywords = ['FORM', 'INPUT', 'DISPLAY', 'CONSTRUCT'];
+        const upperLine = line.toUpperCase();
+        return formContextKeywords.some(keyword => upperLine.includes(keyword));
+    }
+}
+exports.FourGLCompletionProvider = FourGLCompletionProvider;
+//# sourceMappingURL=completion-provider.js.map

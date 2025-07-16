@@ -1,0 +1,497 @@
+# SPESDH.src - Sage X3 Sales Order Document Header Processing
+# This is a comprehensive example of Sage X3 4GL code for document header management
+
+##############################################################################
+# GLOBAL VARIABLES AND CONSTANTS
+##############################################################################
+Global Char GUSER(20)               # Current user
+Global Char GCOMPANY(5)             # Current company
+Global Date GCURRENTDATE            # Current business date
+Global Integer GERROR               # Global error flag
+Global Decimal GTOTALAMOUNT         # Document total amount
+
+# Document status constants  
+Const Char STAT_DRAFT(1) = "D"      # Draft status
+Const Char STAT_CONFIRMED(1) = "C"  # Confirmed status
+Const Char STAT_INVOICED(1) = "I"   # Invoiced status
+Const Char STAT_CANCELLED(1) = "X"  # Cancelled status
+
+# Document types
+Const Char DOCTYPE_SO(3) = "SOH"    # Sales Order Header
+Const Char DOCTYPE_QU(3) = "QUO"    # Quotation
+Const Char DOCTYPE_BL(3) = "BLH"    # Blanket Order Header
+
+##############################################################################
+# MAIN DOCUMENT HEADER PROCESSING FUNCTIONS
+##############################################################################
+
+# Main entry point for document header processing
+Subprog SPESDH_MAIN(OPERATION, GDOCUMENT())
+Variable Char OPERATION(10)          # Operation type: CREATE, UPDATE, DELETE, VALIDATE
+Variable Char GDOCUMENT(*)           # Document data structure
+
+  # Initialize processing context
+  Call SPESDH_INIT() From SPESDH
+  
+  # Process based on operation type
+  Case OPERATION
+    When "CREATE"
+      Call SPESDH_CREATE_HEADER(GDOCUMENT) From SPESDH
+    When "UPDATE" 
+      Call SPESDH_UPDATE_HEADER(GDOCUMENT) From SPESDH
+    When "DELETE"
+      Call SPESDH_DELETE_HEADER(GDOCUMENT) From SPESDH
+    When "VALIDATE"
+      Call SPESDH_VALIDATE_HEADER(GDOCUMENT) From SPESDH
+    When "CALCULATE"
+      Call SPESDH_CALCULATE_TOTALS(GDOCUMENT) From SPESDH
+    Default
+      GERROR = 1
+      Call GESTCRE From GESADD With "SPESDH", "Invalid operation: " + OPERATION, 1
+  Endcase
+  
+  # Cleanup and return
+  Call SPESDH_CLEANUP() From SPESDH
+End
+
+##############################################################################
+# DOCUMENT HEADER CREATION
+##############################################################################
+Subprog SPESDH_CREATE_HEADER(GDOCUMENT())
+Variable Char GDOCUMENT(*)
+
+  Local Char LDOCNUM(20)             # Document number
+  Local Char LCUSTOMER(15)           # Customer code
+  Local Date LDOCDATE                # Document date
+  Local Char LSTATUS(1)              # Document status
+  Local Decimal LAMOUNT              # Document amount
+  Local Integer LERROR               # Local error flag
+  
+  # Extract document data
+  LDOCNUM = GDOCUMENT("DOCNUM")
+  LCUSTOMER = GDOCUMENT("CUSTOMER") 
+  LDOCDATE = val(GDOCUMENT("DOCDATE"))
+  LSTATUS = GDOCUMENT("STATUS")
+  LAMOUNT = val(GDOCUMENT("AMOUNT"))
+  
+  # Validate required fields
+  Call SPESDH_VALIDATE_REQUIRED_FIELDS(LDOCNUM, LCUSTOMER, LDOCDATE) From SPESDH
+  If GERROR <> 0 : Return : Endif
+  
+  # Validate customer exists and is active
+  Call SPESDH_VALIDATE_CUSTOMER(LCUSTOMER) From SPESDH  
+  If GERROR <> 0 : Return : Endif
+  
+  # Generate document number if not provided
+  If LDOCNUM = ""
+    Call SPESDH_GENERATE_DOCNUM(LDOCNUM, DOCTYPE_SO) From SPESDH
+    GDOCUMENT("DOCNUM") = LDOCNUM
+  Endif
+  
+  # Set default values
+  If LSTATUS = "" : LSTATUS = STAT_DRAFT : Endif
+  If LDOCDATE = [0/0/0] : LDOCDATE = GCURRENTDATE : Endif
+  
+  # Create document header record
+  Trbegin DOCUMENTS
+  
+  DOCUMENTS.DOCNUM = LDOCNUM
+  DOCUMENTS.DOCTYPE = DOCTYPE_SO
+  DOCUMENTS.CUSTOMER = LCUSTOMER
+  DOCUMENTS.DOCDATE = LDOCDATE
+  DOCUMENTS.STATUS = LSTATUS
+  DOCUMENTS.AMOUNT = LAMOUNT
+  DOCUMENTS.CREUSER = GUSER
+  DOCUMENTS.CREDAT = date$
+  DOCUMENTS.UPDUSER = GUSER
+  DOCUMENTS.UPDDAT = date$
+  DOCUMENTS.UPDTIM = time$
+  
+  Write [DOCUMENTS] 
+  If fstat <> 0
+    GERROR = 1
+    Call GESTCRE From GESADD With "SPESDH", "Error creating document: " + mess(255,fstat,1), 1
+    Trrollback
+    Return
+  Endif
+  
+  # Create audit trail entry
+  Call SPESDH_CREATE_AUDIT_ENTRY(LDOCNUM, "CREATE", "Document created") From SPESDH
+  
+  # Initialize document lines if needed
+  If GDOCUMENT("CREATELINES") = "1"
+    Call SPESDL_INIT_LINES(LDOCNUM) From SPESDL
+  Endif
+  
+  Trcommit
+  
+  # Log successful creation
+  Call GESTCRE From GESADD With "SPESDH", "Document " + LDOCNUM + " created successfully", 0
+  
+End
+
+##############################################################################
+# DOCUMENT HEADER UPDATE  
+##############################################################################
+Subprog SPESDH_UPDATE_HEADER(GDOCUMENT())
+Variable Char GDOCUMENT(*)
+
+  Local Char LDOCNUM(20)
+  Local Char LCUSTOMER(15) 
+  Local Date LDOCDATE
+  Local Char LSTATUS(1)
+  Local Decimal LAMOUNT
+  Local Char LOLDSTATUS(1)           # Previous status for validation
+  
+  LDOCNUM = GDOCUMENT("DOCNUM")
+  
+  # Lock and read existing document
+  Read [DOCUMENTS]DOCNUM = LDOCNUM, DOCTYPE = DOCTYPE_SO
+  If fstat <> 0
+    GERROR = 1
+    Call GESTCRE From GESADD With "SPESDH", "Document not found: " + LDOCNUM, 1
+    Return
+  Endif
+  
+  # Store old status for validation
+  LOLDSTATUS = DOCUMENTS.STATUS
+  
+  # Extract new values
+  LCUSTOMER = GDOCUMENT("CUSTOMER")
+  LDOCDATE = val(GDOCUMENT("DOCDATE"))  
+  LSTATUS = GDOCUMENT("STATUS")
+  LAMOUNT = val(GDOCUMENT("AMOUNT"))
+  
+  # Validate status transition
+  Call SPESDH_VALIDATE_STATUS_CHANGE(LOLDSTATUS, LSTATUS) From SPESDH
+  If GERROR <> 0 : Return : Endif
+  
+  # Validate customer if changed
+  If LCUSTOMER <> DOCUMENTS.CUSTOMER
+    Call SPESDH_VALIDATE_CUSTOMER(LCUSTOMER) From SPESDH
+    If GERROR <> 0 : Return : Endif
+  Endif
+  
+  Trbegin DOCUMENTS
+  
+  # Update fields
+  If LCUSTOMER <> "" : DOCUMENTS.CUSTOMER = LCUSTOMER : Endif
+  If LDOCDATE <> [0/0/0] : DOCUMENTS.DOCDATE = LDOCDATE : Endif  
+  If LSTATUS <> "" : DOCUMENTS.STATUS = LSTATUS : Endif
+  If LAMOUNT <> 0 : DOCUMENTS.AMOUNT = LAMOUNT : Endif
+  DOCUMENTS.UPDUSER = GUSER
+  DOCUMENTS.UPDDAT = date$
+  DOCUMENTS.UPDTIM = time$
+  
+  Rewrite [DOCUMENTS]
+  If fstat <> 0
+    GERROR = 1
+    Call GESTCRE From GESADD With "SPESDH", "Error updating document: " + mess(255,fstat,1), 1
+    Trrollback
+    Return
+  Endif
+  
+  # Create audit trail
+  Call SPESDH_CREATE_AUDIT_ENTRY(LDOCNUM, "UPDATE", "Document updated") From SPESDH
+  
+  # Handle status-specific processing
+  If LSTATUS = STAT_CONFIRMED And LOLDSTATUS = STAT_DRAFT
+    Call SPESDH_CONFIRM_DOCUMENT(LDOCNUM) From SPESDH
+  Elsif LSTATUS = STAT_CANCELLED
+    Call SPESDH_CANCEL_DOCUMENT(LDOCNUM) From SPESDH  
+  Endif
+  
+  Trcommit
+  
+End
+
+##############################################################################
+# DOCUMENT VALIDATION FUNCTIONS
+##############################################################################
+Subprog SPESDH_VALIDATE_REQUIRED_FIELDS(DOCNUM, CUSTOMER, DOCDATE)
+Variable Char DOCNUM(20), CUSTOMER(15)
+Variable Date DOCDATE
+
+  GERROR = 0
+  
+  If CUSTOMER = ""
+    GERROR = 1
+    Call GESTCRE From GESADD With "SPESDH", "Customer code is required", 1
+    Return
+  Endif
+  
+  If DOCDATE = [0/0/0]
+    GERROR = 1  
+    Call GESTCRE From GESADD With "SPESDH", "Document date is required", 1
+    Return
+  Endif
+  
+  # Validate date is not in the future
+  If DOCDATE > GCURRENTDATE
+    GERROR = 1
+    Call GESTCRE From GESADD With "SPESDH", "Document date cannot be in the future", 1
+    Return
+  Endif
+  
+End
+
+Subprog SPESDH_VALIDATE_CUSTOMER(CUSTOMER)
+Variable Char CUSTOMER(15)
+
+  Local Integer LACTIVE
+  
+  # Check customer exists
+  Read [CUSTOMERS]CUSTCODE = CUSTOMER
+  If fstat <> 0
+    GERROR = 1
+    Call GESTCRE From GESADD With "SPESDH", "Customer does not exist: " + CUSTOMER, 1
+    Return
+  Endif
+  
+  # Check customer is active
+  LACTIVE = CUSTOMERS.ACTIVE
+  If LACTIVE <> 1
+    GERROR = 1
+    Call GESTCRE From GESADD With "SPESDH", "Customer is not active: " + CUSTOMER, 1
+    Return
+  Endif
+  
+  # Validate credit limit if applicable
+  Call SPESDH_CHECK_CREDIT_LIMIT(CUSTOMER) From SPESDH
+  
+End
+
+Subprog SPESDH_VALIDATE_STATUS_CHANGE(OLDSTATUS, NEWSTATUS)
+Variable Char OLDSTATUS(1), NEWSTATUS(1)
+
+  GERROR = 0
+  
+  # Define valid status transitions
+  Case OLDSTATUS
+    When STAT_DRAFT
+      If find(NEWSTATUS, STAT_CONFIRMED + STAT_CANCELLED) = 0
+        GERROR = 1
+      Endif
+    When STAT_CONFIRMED  
+      If find(NEWSTATUS, STAT_INVOICED + STAT_CANCELLED) = 0
+        GERROR = 1
+      Endif
+    When STAT_INVOICED
+      If NEWSTATUS <> STAT_INVOICED
+        GERROR = 1
+      Endif
+    When STAT_CANCELLED
+      If NEWSTATUS <> STAT_CANCELLED
+        GERROR = 1
+      Endif
+    Default
+      GERROR = 1
+  Endcase
+  
+  If GERROR = 1
+    Call GESTCRE From GESADD With "SPESDH", "Invalid status change from " + OLDSTATUS + " to " + NEWSTATUS, 1
+  Endif
+  
+End
+
+##############################################################################
+# BUSINESS LOGIC FUNCTIONS
+##############################################################################
+Subprog SPESDH_CALCULATE_TOTALS(GDOCUMENT())
+Variable Char GDOCUMENT(*)
+
+  Local Char LDOCNUM(20)
+  Local Decimal LLINETOTAL, LTAX, LDISCOUNT, LGRANDTOTAL
+  
+  LDOCNUM = GDOCUMENT("DOCNUM")
+  LLINETOTAL = 0
+  LTAX = 0
+  LDISCOUNT = 0
+  
+  # Calculate line totals
+  For [DOCLINES] Where DOCNUM = LDOCNUM
+    LLINETOTAL += DOCLINES.QUANTITY * DOCLINES.UNITPRICE
+    LDISCOUNT += DOCLINES.DISCOUNT
+  Next
+  
+  # Calculate tax
+  LTAX = LLINETOTAL * 0.20  # 20% VAT
+  
+  # Calculate grand total
+  LGRANDTOTAL = LLINETOTAL + LTAX - LDISCOUNT
+  
+  # Update document header
+  Trbegin DOCUMENTS
+  Read [DOCUMENTS]DOCNUM = LDOCNUM, DOCTYPE = DOCTYPE_SO
+  DOCUMENTS.LINETOTAL = LLINETOTAL
+  DOCUMENTS.TAX = LTAX
+  DOCUMENTS.DISCOUNT = LDISCOUNT  
+  DOCUMENTS.AMOUNT = LGRANDTOTAL
+  DOCUMENTS.UPDUSER = GUSER
+  DOCUMENTS.UPDDAT = date$
+  DOCUMENTS.UPDTIM = time$
+  Rewrite [DOCUMENTS]
+  Trcommit
+  
+  # Update return values
+  GDOCUMENT("LINETOTAL") = string$(LLINETOTAL)
+  GDOCUMENT("TAX") = string$(LTAX)
+  GDOCUMENT("DISCOUNT") = string$(LDISCOUNT)
+  GDOCUMENT("AMOUNT") = string$(LGRANDTOTAL)
+  
+End
+
+Subprog SPESDH_CHECK_CREDIT_LIMIT(CUSTOMER)
+Variable Char CUSTOMER(15)
+
+  Local Decimal LCREDITLIMIT, LOUTSTANDING, LAVAILABLE
+  
+  # Get customer credit limit
+  Read [CUSTOMERS]CUSTCODE = CUSTOMER
+  LCREDITLIMIT = CUSTOMERS.CREDITLIMIT
+  
+  # Calculate outstanding amount
+  LOUTSTANDING = 0
+  For [DOCUMENTS] Where CUSTOMER = CUSTOMER And STATUS <> STAT_CANCELLED
+    LOUTSTANDING += DOCUMENTS.AMOUNT
+  Next
+  
+  LAVAILABLE = LCREDITLIMIT - LOUTSTANDING
+  
+  If LAVAILABLE <= 0
+    GERROR = 1
+    Call GESTCRE From GESADD With "SPESDH", "Customer credit limit exceeded. Available: " + string$(LAVAILABLE), 1
+  Elsif LAVAILABLE < 1000
+    # Warning if credit limit is close
+    Call GESTCRE From GESADD With "SPESDH", "Warning: Low credit available: " + string$(LAVAILABLE), 0
+  Endif
+  
+End
+
+##############################################################################
+# DOCUMENT LIFECYCLE FUNCTIONS  
+##############################################################################
+Subprog SPESDH_CONFIRM_DOCUMENT(DOCNUM)
+Variable Char DOCNUM(20)
+
+  Local Date LCONFIRMDATE
+  
+  LCONFIRMDATE = GCURRENTDATE
+  
+  Trbegin DOCUMENTS
+  Read [DOCUMENTS]DOCNUM = DOCNUM, DOCTYPE = DOCTYPE_SO
+  DOCUMENTS.STATUS = STAT_CONFIRMED
+  DOCUMENTS.CONFIRMDATE = LCONFIRMDATE
+  DOCUMENTS.CONFIRMUSER = GUSER
+  DOCUMENTS.UPDUSER = GUSER
+  DOCUMENTS.UPDDAT = date$
+  DOCUMENTS.UPDTIM = time$
+  Rewrite [DOCUMENTS]
+  Trcommit
+  
+  # Reserve inventory for confirmed orders
+  Call SPESINV_RESERVE_INVENTORY(DOCNUM) From SPESINV
+  
+  # Send confirmation email if configured
+  Call SPESMAIL_SEND_CONFIRMATION(DOCNUM) From SPESMAIL
+  
+  Call SPESDH_CREATE_AUDIT_ENTRY(DOCNUM, "CONFIRM", "Document confirmed") From SPESDH
+  
+End
+
+Subprog SPESDH_CANCEL_DOCUMENT(DOCNUM)
+Variable Char DOCNUM(20)
+
+  Trbegin DOCUMENTS
+  Read [DOCUMENTS]DOCNUM = DOCNUM, DOCTYPE = DOCTYPE_SO
+  DOCUMENTS.STATUS = STAT_CANCELLED
+  DOCUMENTS.CANCELDATE = GCURRENTDATE
+  DOCUMENTS.CANCELUSER = GUSER
+  DOCUMENTS.UPDUSER = GUSER
+  DOCUMENTS.UPDDAT = date$
+  DOCUMENTS.UPDTIM = time$
+  Rewrite [DOCUMENTS]
+  Trcommit
+  
+  # Release reserved inventory
+  Call SPESINV_RELEASE_INVENTORY(DOCNUM) From SPESINV
+  
+  Call SPESDH_CREATE_AUDIT_ENTRY(DOCNUM, "CANCEL", "Document cancelled") From SPESDH
+  
+End
+
+##############################################################################
+# UTILITY FUNCTIONS
+##############################################################################
+Subprog SPESDH_GENERATE_DOCNUM(DOCNUM, DOCTYPE)
+Variable Char DOCNUM(20), DOCTYPE(3)
+
+  Local Integer LNEXTNUM
+  Local Char LPREFIX(5)
+  
+  # Get next number from sequence table
+  Read [SEQUENCES]DOCTYPE = DOCTYPE
+  If fstat = 0
+    LNEXTNUM = SEQUENCES.NEXTNUM
+    LPREFIX = SEQUENCES.PREFIX
+    SEQUENCES.NEXTNUM += 1
+    Rewrite [SEQUENCES]
+  Else
+    LNEXTNUM = 1
+    LPREFIX = DOCTYPE
+  Endif
+  
+  DOCNUM = LPREFIX + format$("000000", LNEXTNUM)
+  
+End
+
+Subprog SPESDH_CREATE_AUDIT_ENTRY(DOCNUM, ACTION, DESCRIPTION)
+Variable Char DOCNUM(20), ACTION(10), DESCRIPTION(100)
+
+  AUDITS.DOCNUM = DOCNUM
+  AUDITS.ACTION = ACTION
+  AUDITS.DESCRIPTION = DESCRIPTION
+  AUDITS.USERID = GUSER
+  AUDITS.TIMESTAMP = datetime$
+  
+  Write [AUDITS]
+  
+End
+
+Subprog SPESDH_INIT()
+  # Initialize global variables
+  GUSER = GLBUSER
+  GCOMPANY = GLBCOMPANY  
+  GCURRENTDATE = date$
+  GERROR = 0
+  GTOTALAMOUNT = 0
+End
+
+Subprog SPESDH_CLEANUP()
+  # Cleanup resources
+  Close [DOCUMENTS]
+  Close [CUSTOMERS]
+  Close [AUDITS]
+End
+
+##############################################################################
+# ERROR HANDLING AND LOGGING
+##############################################################################
+Subprog SPESDH_LOG_ERROR(MODULE, MESSAGE, SEVERITY)
+Variable Char MODULE(10), MESSAGE(255)
+Variable Integer SEVERITY
+
+  Local Char LLOGENTRY(500)
+  
+  LLOGENTRY = format$("YYYY-MM-DD hh:mm:ss", datetime$) + " [" + MODULE + "] " + MESSAGE
+  
+  If SEVERITY = 1
+    LLOGENTRY = "ERROR: " + LLOGENTRY
+  Else  
+    LLOGENTRY = "INFO: " + LLOGENTRY
+  Endif
+  
+  # Write to application log
+  Call GESLOG From GESADD With LLOGENTRY
+  
+End

@@ -1,0 +1,8 @@
+{
+  "files.associations": {
+    "*.4gl": "fourgl",
+    "*.src": "fourgl"
+  },
+  "fourgl.maxNumberOfProblems": 100,
+  "fourgl.trace.server": "verbose"
+}
