@@ -1,17 +1,29 @@
-# Sage X3 Developer Tools
+# 🚀 Sage X3 Developer Tools
 
 [![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/SageX3helper.sage-x3-language-support)](https://marketplace.visualstudio.com/items?itemName=SageX3helper.sage-x3-language-support)
 [![Downloads](https://img.shields.io/visual-studio-marketplace/d/SageX3helper.sage-x3-language-support)](https://marketplace.visualstudio.com/items?itemName=SageX3helper.sage-x3-language-support)
 [![Rating](https://img.shields.io/visual-studio-marketplace/r/SageX3helper.sage-x3-language-support)](https://marketplace.visualstudio.com/items?itemName=SageX3helper.sage-x3-language-support)
 
-A comprehensive **Language Server Protocol (LSP)** extension for **Sage X3 .src files** development in Visual Studio Code.
+A comprehensive **Language Server Protocol (LSP)** extension for **Sage X3 .src files** with **live database connection** and **intelligent bracket field completion**.
 
 ## ✨ Features
 
+### 🔗 **Live Database Connection** *(NEW in v1.2)*
+- **Real-time table autocomplete** - Connect to live Sage X3 servers for dynamic completions
+- **VPN + Browser support** - Works with corporate VPN connections and web-based Sage X3 access
+- **Syracuse integration** - Compatible with Sage X3 Syracuse web client architecture
+- **Connection caching** - Optimized performance with intelligent schema caching
+
+### 🎯 **Enhanced Bracket Field Completion** *(NEW in v1.2)*
+- **Smart abbreviation mapping** - Type `[BPC]` and get BPCUSTOMER field suggestions
+- **Intelligent field completion** - After `[BPC]` press Ctrl+Space to see all customer fields
+- **Rich field information** - Shows field types, lengths, descriptions, and primary key indicators
+- **Table abbreviation support**: `[BPC]` → BPCUSTOMER, `[SOH]` → SORDER, `[ITM]` → ITEMMASTER, and more
+
 ### 🚀 **Intelligent Code Completion**
-- **Keywords**: Complete 4GL, SQL, and Sage X3 specific keywords
-- **Built-in Functions**: Over 50+ pre-defined functions with documentation
-- **Code Snippets**: Ready-to-use templates for common patterns
+- **Keywords**: Complete Sage X3 specific keywords and constructs
+- **Built-in Functions**: Over 50+ pre-defined functions with documentation (GESTCRE, GESADD, AFFZO, GDAT, etc.)
+- **Code Snippets**: Ready-to-use templates for common Sage X3 patterns
 - **Variables & Functions**: Context-aware suggestions from your code
 
 ### 📝 **Code Snippets**

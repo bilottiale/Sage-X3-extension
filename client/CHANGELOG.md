@@ -2,6 +2,44 @@
 
 All notable changes to the "Sage X3 Developer Tools" extension will be documented in this file.
 
+## [1.2.0] - 2025-07-17
+
+### 🚀 Major Features Added
+
+#### **Live Database Connection**
+- **Real-time table autocomplete** - Connect to live Sage X3 servers for dynamic completions
+- **VPN + Browser support** - Works with corporate VPN connections and web-based Sage X3 access
+- **Syracuse integration** - Compatible with Sage X3 Syracuse web client architecture
+- **Connection caching** - Optimized performance with intelligent schema caching
+
+#### **Enhanced Bracket Field Completion** 
+- **Smart abbreviation mapping** - Type `[BPC]` and get BPCUSTOMER field suggestions
+- **Intelligent field completion** - After `[BPC]` press Ctrl+Space to see all customer fields
+- **Rich field information** - Shows field types, lengths, descriptions, and primary key indicators
+- **Table abbreviation support**:
+  - `[BPC]` → BPCUSTOMER fields
+  - `[SOH]` → SORDER fields  
+  - `[ITM]` → ITEMMASTER fields
+  - `[SIH]` → SINVOICE fields
+  - And many more...
+
+#### **Advanced Context Detection**
+- **Bracket notation parsing** - Detects `[TABLE]FIELD` patterns
+- **Dot notation support** - Enhanced `TABLE.FIELD` completion
+- **Multi-pattern recognition** - Works in Read, Write, For statements
+- **Filtered completions** - Type `[BPC]BPC` to see only fields starting with "BPC"
+
+### 🔧 Technical Improvements
+- **SageX3ConnectionProvider** - New robust connection management
+- **HTTP/HTTPS support** - Works with SSL certificates and corporate firewalls
+- **Async completion** - Non-blocking autocomplete operations
+- **Enhanced error handling** - Better recovery and fallback mechanisms
+
+### 📚 New Documentation
+- **VPN_BROWSER_SETUP_GUIDE.md** - Setup guide for VPN environments
+- **BRACKET_COMPLETION_GUIDE.md** - Interactive bracket completion guide
+- **SAGE_X3_CONNECTION_GUIDE.md** - Comprehensive connection setup
+
 ## [1.1.0] - 2025-07-16
 
 ### Added

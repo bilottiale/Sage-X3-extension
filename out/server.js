@@ -17,7 +17,7 @@ let hasDiagnosticRelatedInformationCapability = false;
 // Initialize language services
 const parser = new fourgl_parser_1.FourGLParser();
 const symbolProvider = new symbol_provider_1.FourGLSymbolProvider();
-const completionProvider = new completion_provider_1.FourGLCompletionProvider(symbolProvider);
+let completionProvider;
 const diagnosticsProvider = new diagnostics_provider_1.FourGLDiagnosticsProvider(parser);
 const hoverProvider = new hover_provider_1.FourGLHoverProvider(symbolProvider);
 connection.onInitialize((params) => {
@@ -63,12 +63,21 @@ connection.onInitialized(() => {
             connection.console.log('Workspace folder change event received.');
         });
     }
+    // Initialize completion provider with default settings
+    completionProvider = new completion_provider_1.FourGLCompletionProvider(symbolProvider, globalSettings.sageX3);
 });
 // The global settings, used when the `workspace/configuration` request is not supported by the client
 const defaultSettings = {
     maxNumberOfProblems: 1000,
     enableDiagnostics: true,
-    enableCompletion: true
+    enableCompletion: true,
+    sageX3: {
+        serverUrl: 'http://localhost:3000',
+        username: '',
+        password: '',
+        folder: 'SEED',
+        enabled: false
+    }
 };
 let globalSettings = defaultSettings;
 // Cache the settings of all open documents
@@ -81,6 +90,8 @@ connection.onDidChangeConfiguration(change => {
     else {
         globalSettings = ((change.settings.fourglLanguageServer || defaultSettings));
     }
+    // Initialize completion provider with updated settings
+    completionProvider = new completion_provider_1.FourGLCompletionProvider(symbolProvider, globalSettings.sageX3);
     // Revalidate all open text documents
     documents.all().forEach(validateTextDocument);
 });
@@ -131,7 +142,7 @@ connection.onCompletion(async (textDocumentPosition) => {
     if (!settings.enableCompletion) {
         return [];
     }
-    return completionProvider.getCompletionItems(document, textDocumentPosition.position);
+    return await completionProvider.getCompletionItems(document, textDocumentPosition.position);
 });
 // This handler resolves additional information for the item selected in
 // the completion list

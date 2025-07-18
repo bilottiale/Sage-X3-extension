@@ -1,8 +1,8 @@
 {
   "name": "sage-x3-language-support",
   "displayName": "Sage X3 Developer Tools",
-  "description": "Advanced Language Server Protocol (LSP) for Sage X3 development with intelligent code completion, snippets, syntax highlighting, and diagnostics for .src files",
-  "version": "1.1.0",
+  "description": "Advanced Language Server Protocol (LSP) for Sage X3 development with live database connection, intelligent bracket field completion ([BPC]BPCNUM), syntax highlighting, and diagnostics for .src files",
+  "version": "1.2.0",
   "publisher": "SageX3helper",
   "author": {
     "name": "4GL Tools Team"
@@ -86,6 +86,36 @@
           ],
           "default": "off",
           "description": "Traces the communication between VSCode and the Sage X3 language server"
+        },
+        "sage-x3.connection.enabled": {
+          "scope": "window",
+          "type": "boolean",
+          "default": false,
+          "description": "Enable connection to Sage X3 server for enhanced autocomplete"
+        },
+        "sage-x3.connection.serverUrl": {
+          "scope": "window",
+          "type": "string",
+          "default": "http://localhost:3000",
+          "description": "Sage X3 compiler server URL"
+        },
+        "sage-x3.connection.folder": {
+          "scope": "window",
+          "type": "string",
+          "default": "SEED",
+          "description": "Sage X3 folder name (e.g., SEED, X3, etc.)"
+        },
+        "sage-x3.connection.username": {
+          "scope": "window",
+          "type": "string",
+          "default": "",
+          "description": "Username for Sage X3 server authentication"
+        },
+        "sage-x3.connection.password": {
+          "scope": "window",
+          "type": "string",
+          "default": "",
+          "description": "Password for Sage X3 server authentication"
         }
       }
     }

@@ -25,6 +25,13 @@ import { FourGLSymbolProvider } from './language/symbol-provider';
 import { FourGLCompletionProvider } from './language/completion-provider';
 import { FourGLDiagnosticsProvider } from './language/diagnostics-provider';
 import { FourGLHoverProvider } from './language/hover-provider';
+import { SageX3Config } from './language/sage-x3-connection';
+
+// Configuration interface
+interface ExtensionSettings {
+  maxNumberOfProblems: number;
+  sageX3?: SageX3Config;
+}
 
 // Create a connection for the server
 const connection = createConnection(ProposedFeatures.all);
@@ -39,7 +46,7 @@ let hasDiagnosticRelatedInformationCapability = false;
 // Initialize language services
 const parser = new FourGLParser();
 const symbolProvider = new FourGLSymbolProvider();
-const completionProvider = new FourGLCompletionProvider(symbolProvider);
+let completionProvider: FourGLCompletionProvider;
 const diagnosticsProvider = new FourGLDiagnosticsProvider(parser);
 const hoverProvider = new FourGLHoverProvider(symbolProvider);
 
@@ -97,6 +104,9 @@ connection.onInitialized(() => {
       connection.console.log('Workspace folder change event received.');
     });
   }
+  
+  // Initialize completion provider with default settings
+  completionProvider = new FourGLCompletionProvider(symbolProvider, globalSettings.sageX3);
 });
 
 // 4GL Language Server Settings
@@ -104,13 +114,21 @@ interface FourGLSettings {
   maxNumberOfProblems: number;
   enableDiagnostics: boolean;
   enableCompletion: boolean;
+  sageX3?: SageX3Config;
 }
 
 // The global settings, used when the `workspace/configuration` request is not supported by the client
 const defaultSettings: FourGLSettings = { 
   maxNumberOfProblems: 1000, 
   enableDiagnostics: true,
-  enableCompletion: true
+  enableCompletion: true,
+  sageX3: {
+    serverUrl: 'http://localhost:3000',
+    username: '',
+    password: '',
+    folder: 'SEED',
+    enabled: false
+  }
 };
 let globalSettings: FourGLSettings = defaultSettings;
 
@@ -126,6 +144,9 @@ connection.onDidChangeConfiguration(change => {
       (change.settings.fourglLanguageServer || defaultSettings)
     );
   }
+
+  // Initialize completion provider with updated settings
+  completionProvider = new FourGLCompletionProvider(symbolProvider, globalSettings.sageX3);
 
   // Revalidate all open text documents
   documents.all().forEach(validateTextDocument);
@@ -189,7 +210,7 @@ connection.onCompletion(
       return [];
     }
 
-    return completionProvider.getCompletionItems(document, textDocumentPosition.position);
+    return await completionProvider.getCompletionItems(document, textDocumentPosition.position);
   }
 );
 

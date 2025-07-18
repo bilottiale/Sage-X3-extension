@@ -2,8 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FourGLCompletionProvider = void 0;
 const node_1 = require("vscode-languageserver/node");
+const sage_x3_connection_1 = require("./sage-x3-connection");
 class FourGLCompletionProvider {
-    constructor(symbolProvider) {
+    constructor(symbolProvider, sageX3Config) {
         this.symbolProvider = symbolProvider;
         // Sage X3 specific keywords with proper case
         this.keywords = [
@@ -241,8 +242,20 @@ LGRANDTOTAL = LLINETOTAL + LTAX - LDISCOUNT
 \${0}`
             }
         ];
+        // Initialize Sage X3 connection if config provided
+        if (sageX3Config && sageX3Config.enabled && sageX3Config.serverUrl) {
+            this.sageX3Connection = new sage_x3_connection_1.SageX3ConnectionProvider(sageX3Config.serverUrl, sageX3Config.folder || 'SEED', sageX3Config.username || '', sageX3Config.password || '');
+            // Test connection in background
+            this.sageX3Connection.testConnection().then(connected => {
+                console.log(`Sage X3 connection: ${connected ? 'SUCCESS' : 'FAILED'}`);
+            });
+        }
+        else {
+            // Default config for testing
+            this.sageX3Connection = new sage_x3_connection_1.SageX3ConnectionProvider('http://localhost:3000', 'SEED', '', '');
+        }
     }
-    getCompletionItems(document, position) {
+    async getCompletionItems(document, position) {
         const completions = [];
         const text = document.getText();
         const lines = text.split('\n');
@@ -254,9 +267,43 @@ LGRANDTOTAL = LLINETOTAL + LTAX - LDISCOUNT
                 completions.push({
                     label: keyword,
                     kind: node_1.CompletionItemKind.Keyword,
-                    detail: '4GL Keyword',
+                    detail: 'Sage X3 Keyword',
                     insertText: keyword
                 });
+            }
+        }
+        // **NEW: Sage X3 Table and Field Completion**
+        if (this.sageX3Connection && await this.sageX3Connection.isConnected()) {
+            try {
+                // Parse table reference from current line
+                const tableRef = this.sageX3Connection.parseTableReference(currentLine, position.character);
+                if (tableRef) {
+                    if (tableRef.isAfterBracket && tableRef.tableName) {
+                        // After [BPC] - show field completions for that table
+                        const fieldCompletions = await this.sageX3Connection.getBracketFieldCompletions(tableRef.tableName, tableRef.fieldPrefix);
+                        completions.push(...fieldCompletions);
+                    }
+                    else if (tableRef.fieldPrefix !== '' && tableRef.tableName) {
+                        // User is typing a field name after table name (e.g., BPCUSTOMER.BPC...)
+                        const fieldCompletions = await this.sageX3Connection.getFieldCompletions(tableRef.tableName, tableRef.fieldPrefix);
+                        completions.push(...fieldCompletions);
+                    }
+                    else if (!tableRef.tableName) {
+                        // Inside brackets [TAB] - show table completions
+                        const tableCompletions = await this.sageX3Connection.getTableCompletions(tableRef.fieldPrefix);
+                        completions.push(...tableCompletions);
+                    }
+                }
+                else {
+                    // Check if we're in a context where table names are relevant
+                    if (this.isInDatabaseContext(currentLine)) {
+                        const tableCompletions = await this.sageX3Connection.getTableCompletions(currentWord);
+                        completions.push(...tableCompletions);
+                    }
+                }
+            }
+            catch (error) {
+                console.error('Error fetching Sage X3 completions:', error);
             }
         }
         // Add built-in functions
@@ -394,6 +441,13 @@ LGRANDTOTAL = LLINETOTAL + LTAX - LDISCOUNT
         const formContextKeywords = ['FORM', 'INPUT', 'DISPLAY', 'CONSTRUCT'];
         const upperLine = line.toUpperCase();
         return formContextKeywords.some(keyword => upperLine.includes(keyword));
+    }
+    isInDatabaseContext(line) {
+        const dbContextKeywords = ['READ', 'WRITE', 'REWRITE', 'DELETE', 'FOR', 'FIRST', 'NEXT', 'TRBEGIN'];
+        const upperLine = line.toUpperCase();
+        return dbContextKeywords.some(keyword => upperLine.includes(keyword)) ||
+            line.includes('[') || // Table bracket notation
+            line.includes('.'); // Table.field notation
     }
 }
 exports.FourGLCompletionProvider = FourGLCompletionProvider;

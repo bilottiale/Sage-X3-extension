@@ -1,0 +1,68 @@
+## Sage X3 Advanced Autocomplete Test
+
+$#__________________________________________________________
+$# Customer Management with Live Database Connection
+$# This file demonstrates the enhanced autocomplete features
+$#__________________________________________________________
+
+Local Char CUSTOMER(15)
+Local Char CUSTOMERNAME(35)
+Local Decimal AMOUNT
+Local Date CREATEDATE
+
+$# Test 1: Table autocomplete in bracket notation
+$# Type: Read [BPC and see suggestions for BPCUSTOMER, BPCSUPPLIER, etc.
+
+$# Test 2: Field autocomplete after table reference
+Read [BPCUSTOMER]
+If fstat = 0
+    $# Type: BPCUSTOMER.BPC and see field suggestions
+    CUSTOMER = BPCUSTOMER.BPCNUM
+    CUSTOMERNAME = BPCUSTOMER.BPCNAM
+    
+    $# Test 3: Context-aware suggestions in different statements
+    For [BPCUSTOMER] Where BPCTYP = "CUS"
+        Write [BPCINVOICE] Using
+            BPCINVOICE.BPCNUM = BPCUSTOMER.BPCNUM
+            BPCINVOICE.AMOUNT = AMOUNT
+            BPCINVOICE.CREATEDATE = date$
+        End_for
+    Next
+End
+
+$# Test 4: Transaction context
+Trbegin BPCUSTOMER
+    Write [BPCUSTOMER] Using
+        BPCUSTOMER.BPCNUM = CUSTOMER
+        BPCUSTOMER.BPCNAM = CUSTOMERNAME
+    Commit
+End
+
+$# Test 5: Complex queries with multiple tables
+Local Char SUPPLIER(15)
+Read [BPCSUPPLIER] First Where BPCSTA = "A"
+If fstat = 0
+    $# Should suggest BPCSUPPLIER fields when typing BPCSUPPLIER.
+    SUPPLIER = BPCSUPPLIER.BPCNUM
+End
+
+$# Test 6: Nested table operations
+For [ITMMASTER] Where ITMREF Like "ITEM%"
+    $# Should suggest ITMMASTER fields
+    If ITMMASTER.ITMSTA = "A"
+        Read [ITMSALES] Using ITMMASTER.ITMREF
+        If fstat = 0
+            $# Should suggest ITMSALES fields
+            AMOUNT = ITMSALES.SALFCY
+        End
+    End
+Next
+
+$#__________________________________________________________
+$# Expected Behavior:
+$# 1. [BPC| should show table completions
+$# 2. BPCUSTOMER.BPC| should show field completions  
+$# 3. Context detection should work in Read, Write, For statements
+$# 4. Should show field types and descriptions in hover
+$# 5. Should cache schema for performance
+$#__________________________________________________________

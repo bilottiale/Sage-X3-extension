@@ -1,0 +1,89 @@
+## Sage X3 Bracket Field Completion Test
+
+$#__________________________________________________________
+$# Test the new [TABLE]FIELD completion functionality
+$# After typing [BPC] press Ctrl+Space to see field suggestions
+$#__________________________________________________________
+
+Local Char CUSTOMER(15)
+Local Char CUSTNAME(35)
+Local Decimal AMOUNT
+
+$# Test 1: After [BPC] - should show BPCUSTOMER fields
+$# Type: [BPC] then press Ctrl+Space (or your autocomplete key)
+[BPC]
+
+$# Expected suggestions:
+$# - BPCNUM (Customer Code)
+$# - BPCNAM (Customer Name) 
+$# - BPCTYP (Customer Type)
+$# - CUR (Currency)
+$# - CREDAT (Creation Date)
+$# - CREUSER (Creation User)
+
+$# Test 2: Partial field typing after [BPC]
+$# Type: [BPC]BPC and see filtered suggestions
+[BPC]BPC
+
+$# Expected suggestions:
+$# - BPCNUM (Customer Code)
+$# - BPCNAM (Customer Name)
+$# - BPCTYP (Customer Type)
+
+$# Test 3: Complete field reference
+Read [BPCUSTOMER]
+If fstat = 0
+    CUSTOMER = [BPC]BPCNUM
+    CUSTNAME = [BPC]BPCNAM
+End
+
+$# Test 4: Different table abbreviations
+$# Type: [SOH] and see sales order fields
+[SOH]
+
+$# Expected suggestions:
+$# - SOHNUM (Sales Order Number)
+$# - BPCORD (Customer Code)
+$# - ORDDAT (Order Date)
+$# - GROAMT (Gross Amount)
+$# - NETAMT (Net Amount)
+
+$# Test 5: Item master abbreviation
+$# Type: [ITM] and see item master fields  
+[ITM]
+
+$# Expected suggestions:
+$# - ITMREF (Item Reference)
+$# - ITMDES1 (Item Description 1)
+$# - ITMDES2 (Item Description 2)
+$# - UOM (Unit of Measure)
+$# - SALCATCOD (Sales Category)
+
+$# Test 6: Mixed usage in statements
+For [BPC] Where [BPC]BPCTYP = "CUS"
+    Write [SOH] Using
+        [SOH]BPCORD = [BPC]BPCNUM
+        [SOH]ORDDAT = date$
+        [SOH]GROAMT = AMOUNT
+    Next
+End
+
+$# Test 7: Invoice processing
+Read [SIH] Key CUSTOMER
+If fstat = 0
+    $# Type [SIH] and see invoice fields
+    [SIH]
+End
+
+$#__________________________________________________________
+$# How to test:
+$# 1. Open this file in VS Code
+$# 2. Position cursor after [BPC]
+$# 3. Press Ctrl+Space (Windows/Linux) or Cmd+Space (Mac)
+$# 4. See field suggestions appear!
+$#
+$# The completion should show:
+$# - Field names (BPCNUM, BPCNAM, etc.)
+$# - Field types and descriptions
+$# - Proper bracket notation format
+$#__________________________________________________________
